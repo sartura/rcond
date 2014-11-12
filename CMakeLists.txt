@@ -12,6 +12,8 @@ SET(SOURCES
 	src/rcond.h
 	src/tcp-client-tcp-client.c
 	src/tcp-client-tcp-client.h
+	src/tcp-server-tcp-server.c
+	src/tcp-server-tcp-server.h
 	src/misc.h
 )
 

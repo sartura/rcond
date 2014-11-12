@@ -17,40 +17,10 @@
  *
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#ifndef __TCP_SERVER_TCP_SERVER_RCOND_H__
+#define __TCP_SERVER_TCP_SERVER_RCOND_H__
 
-#include <uv.h>
+int tcp_server_tcp_server_init(const char *addr_left, int port_left, const char *addr_right, int port_right);
+void tcp_server_tcp_server_close();
 
-#include "rcond.h"
-#include "misc.h"
-
-#include "tcp-client-tcp-client.h"
-#include "tcp-server-tcp-server.h"
-
-int main(int argc, char *const argv[])
-{
-	int rc;
-
-	/* make sure we can allocate default loop */
-	if (!uv_default_loop()) {
-		__debug("failed to allocate default loop");
-		return EXIT_FAILURE;
-	}
-
-	rc = tcp_client_tcp_client_init("127.0.0.1", 10001, "127.0.0.1", 10002);
-	if (rc)	goto exit;
-
-	rc = tcp_server_tcp_server_init("127.0.0.1", 10003, "127.0.0.1", 10004);
-	if (rc)	goto exit;
-
-	uv_run(uv_default_loop(), UV_RUN_DEFAULT);
-
-	rc = EXIT_SUCCESS;
-exit:
-	uv_loop_close(uv_default_loop());
-
-	return rc;
-}
+#endif /* __TCP_SERVER_TCP_SERVER_RCOND_H__ */
