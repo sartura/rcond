@@ -26,3 +26,7 @@
 # quilt's files
 patches
 series
+
+# kdevelop
+.kdev4
+freenetconfd.kdev4
