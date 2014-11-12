@@ -17,9 +17,9 @@
  *
  */
 
-#ifndef __TCP_CLIENT_RCOND_H__
-#define __TCP_CLIENT_RCOND_H__
+#ifndef __TCP_CLIENT_TCP_CLIENT_RCOND_H__
+#define __TCP_CLIENT_TCP_CLIENT_RCOND_H__
 
-int tcp_client_init();
+int tcp_client_tcp_client_init(const char *addr_left, int port_left, const char *addr_right, int port_right);
 
-#endif /* __TCP_CLIENT_RCOND_H__ */
+#endif /* __TCP_CLIENT_TCP_CLIENT_RCOND_H__ */

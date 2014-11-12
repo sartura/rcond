@@ -24,7 +24,7 @@
 
 #define __debug(fmt, ...) do { \
 		fprintf(stderr, "%s: %s (%d): %s: "fmt"\n", PROJECT_NAME, __FILE__, __LINE__, __FUNCTION__, ## __VA_ARGS__ ); \
-        } while (0)
+	} while (0)
 
 #ifndef typeof
 #define typeof __typeof
@@ -33,5 +33,10 @@
 #ifndef __unused
 #define __unused __attribute__((unused))
 #endif
+
+typedef struct {
+	uv_write_t req;
+	uv_buf_t buf;
+} write_req_t;
 
 #endif /* __MISC_RCOND_H__ */

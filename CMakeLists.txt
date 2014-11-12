@@ -10,8 +10,8 @@ SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
 SET(SOURCES
 	src/rcond.c
 	src/rcond.h
-	src/tcp-client.c
-	src/tcp-client.h
+	src/tcp-client-tcp-client.c
+	src/tcp-client-tcp-client.h
 	src/misc.h
 )
 

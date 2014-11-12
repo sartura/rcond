@@ -26,7 +26,7 @@
 
 #include "rcond.h"
 #include "misc.h"
-#include "tcp-client.h"
+#include "tcp-client-tcp-client.h"
 
 int main(int argc, char *const argv[])
 {
@@ -38,7 +38,7 @@ int main(int argc, char *const argv[])
 		return EXIT_FAILURE;
 	}
 
-	rc = tcp_client_init();
+	rc = tcp_client_tcp_client_init("127.0.0.1", 10001, "127.0.0.1", 10002);
 	if (rc)	goto exit;
 
 	uv_run(uv_default_loop(), UV_RUN_DEFAULT);
