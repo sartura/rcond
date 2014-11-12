@@ -30,15 +30,34 @@
 #include "tcp-client-tcp-client.h"
 #include "tcp-server-tcp-server.h"
 
+static void on_signal(uv_signal_t *handle, int signum)
+{
+	tcp_server_tcp_server_close();
+
+	uv_stop(uv_default_loop());
+
+	__debug("done");
+}
+
 int main(int argc, char *const argv[])
 {
-	int rc;
+	int rc = 0;
 
 	/* make sure we can allocate default loop */
 	if (!uv_default_loop()) {
 		__debug("failed to allocate default loop");
 		return EXIT_FAILURE;
 	}
+
+	uv_signal_t sigterm;
+	uv_signal_init(uv_default_loop(), &sigterm);
+	uv_signal_start(&sigterm, on_signal, SIGTERM);
+	uv_unref((uv_handle_t *) &sigterm);
+
+	uv_signal_t sigint;
+	uv_signal_init(uv_default_loop(), &sigint);
+	uv_signal_start(&sigint, on_signal, SIGINT);
+	uv_unref((uv_handle_t *) &sigint);
 
 	rc = tcp_client_tcp_client_init("127.0.0.1", 10001, "127.0.0.1", 10002);
 	if (rc)	goto exit;
@@ -47,6 +66,8 @@ int main(int argc, char *const argv[])
 	if (rc)	goto exit;
 
 	uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+
+	__debug("rcond has stopped");
 
 	rc = EXIT_SUCCESS;
 exit:
