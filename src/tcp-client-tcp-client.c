@@ -25,26 +25,25 @@
 #include "tcp-client-tcp-client.h"
 #include "misc.h"
 
-void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf);
+typedef struct client_t client_t;
 
+static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf);
 static void on_close(uv_handle_t *handle);
-
 static void on_write(uv_write_t *req, int status);
+static void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf);
+static void on_connect(uv_connect_t *req, int status);
 
-static void on_read_left(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf);
-static void on_connect_left(uv_connect_t *req, int status);
+static void tcp_client_init(client_t *client);
 
-static void on_read_right(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf);
-static void on_connect_right(uv_connect_t *req, int status);
+struct client_t {
+    uv_tcp_t handle;
+	uv_connect_t *connect_req;
+	struct sockaddr_in sock_addr;
+	struct client_t *bridge;
+    int request_num;
+};
 
-static uv_tcp_t conn_left;
-static uv_connect_t connect_req_left;
-
-static uv_tcp_t conn_right;
-static uv_connect_t connect_req_right;
-
-
-void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf)
+static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf)
 {
 	buf->base = malloc(suggested_size);
 	if (buf->base)
@@ -53,9 +52,20 @@ void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf)
 		buf->len = 0;
 }
 
-void on_close(uv_handle_t *handle)
+static void on_close(uv_handle_t *handle)
 {
-	__debug("done");
+	client_t *client = (client_t *) handle->data;
+
+	free(client->connect_req);
+	client->connect_req = NULL;
+
+	tcp_client_init(client);
+	// free(client);
+
+	// free(handle);
+	// handle = NULL;
+
+	// uv_stop(uv_default_loop());
 }
 
 static void on_write(uv_write_t *req, int status)
@@ -71,88 +81,89 @@ static void on_write(uv_write_t *req, int status)
 	__debug("%s\n", uv_err_name(status));
 }
 
-static void on_read_left(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf)
+static void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t* buf)
 {
+	client_t *client = (client_t *) stream->data;
 	write_req_t *wr;
 
 	if (nread >= 0) {
+#if 0
+		if (!(&client->bridge->handle))
+			goto error;
+#endif
+
 		wr = (write_req_t *) malloc(sizeof *wr);
-		if (!wr) {
-			free(buf->base);
-			__debug("no memory");
-			return;
-		}
+		if (!wr)
+			goto error;
 
 		wr->buf = uv_buf_init(buf->base, nread);
 
-		uv_write(&wr->req, (uv_stream_t *) &conn_right, &wr->buf, 1, on_write);
+		uv_write(&wr->req, (uv_stream_t *) &client->bridge->handle, &wr->buf, 1, on_write);
 	} else {
-		free(buf->base);
 		uv_close((uv_handle_t *) stream, on_close);
-
-		__debug("%s", uv_err_name(nread));
+		goto error;
 	}
+
+	return;
+
+error:
+	free(buf->base);
+	__debug("%s", uv_err_name(nread));
 }
 
-static void on_connect_left(uv_connect_t *req, int status)
+static void on_connect(uv_connect_t *req, int status)
 {
-	uv_read_start(req->handle, on_alloc, on_read_left);
+	uv_read_start(req->handle, on_alloc, on_read);
 
 	__debug("done");
 }
 
-static void on_read_right(uv_stream_t *stream, ssize_t nread, const uv_buf_t* buf)
+static void tcp_client_init(client_t *client)
 {
-	write_req_t *wr;
-
-	if (nread >= 0) {
-		wr = (write_req_t *) malloc(sizeof *wr);
-		if (!wr) {
-			free(buf->base);
-			__debug("no memory");
-			return;
-		}
-
-		wr->buf = uv_buf_init(buf->base, nread);
-
-		uv_write(&wr->req, (uv_stream_t *) &conn_left, &wr->buf, 1, on_write);
-	} else {
-		free(buf->base);
-		uv_close((uv_handle_t *) stream, on_close);
-
-		__debug("%s", uv_err_name(nread));
-	}
-}
-
-static void on_connect_right(uv_connect_t *req, int status)
-{
-	uv_read_start(req->handle, on_alloc, on_read_right);
-
-	__debug("done");
-}
-
-int tcp_client_tcp_client_init(const char* addr_left, int port_left, const char* addr_right, int port_right)
-{
-	struct sockaddr_in sock_addr_left;
-	struct sockaddr_in sock_addr_right;
 	int rc = 0;
 
-	rc = uv_ip4_addr(addr_left, port_left, &sock_addr_left);
+	rc = uv_tcp_init(uv_default_loop(), &client->handle);
+	if (rc) // FIXME
+		return;
+
+	client->connect_req = (uv_connect_t *) malloc(sizeof(uv_connect_t));
+	uv_tcp_connect(client->connect_req, &client->handle, (const struct sockaddr *) &client->sock_addr, on_connect);
+}
+
+int tcp_client_tcp_client_init(const char *addr_left, int port_left, const char *addr_right, int port_right)
+{
+	client_t *client_left, *client_right;
+	int rc = 0;
+
+	client_left = (client_t *) malloc(sizeof(client_t));
+	client_right = (client_t *) malloc(sizeof(client_t));
+
+	if (!client_left || !client_right) {
+		goto out;
+	}
+
+	rc = uv_ip4_addr(addr_right, port_right, &client_right->sock_addr);
 	if (rc) goto out;
 
-	rc = uv_tcp_init(uv_default_loop(), &conn_left);
+	rc = uv_ip4_addr(addr_right, port_left, &client_left->sock_addr);
 	if (rc) goto out;
 
-	rc = uv_ip4_addr(addr_right, port_right, &sock_addr_right);
-	if (rc) goto out;
+	client_left->handle.data = client_left;
+	client_right->handle.data = client_right;
 
-	rc = uv_tcp_init(uv_default_loop(), &conn_right);
-	if (rc) goto out;
+	client_left->bridge = client_right;
+	client_right->bridge = client_left;
 
-	uv_tcp_connect(&connect_req_left, &conn_left, (const struct sockaddr *) &sock_addr_left, on_connect_left);
-	uv_tcp_connect(&connect_req_right, &conn_right, (const struct sockaddr *) &sock_addr_right, on_connect_right);
+	tcp_client_init(client_left);
+	tcp_client_init(client_right);
+
+	return rc;
 
 out:
+	free(client_left);
+	free(client_right);
+
 	if (rc) __debug("%s", uv_err_name(rc));
+
 	return rc;
 }
