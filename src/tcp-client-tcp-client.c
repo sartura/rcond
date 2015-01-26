@@ -83,6 +83,7 @@ static void on_write(uv_write_t *req, int status)
 
 static void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t* buf)
 {
+	uv_buf_t sendbuf;
 	client_t *client = (client_t *) stream->data;
 	write_req_t *wr;
 
@@ -96,9 +97,9 @@ static void on_read(uv_stream_t *stream, ssize_t nread, const uv_buf_t* buf)
 		if (!wr)
 			goto error;
 
-		wr->buf = uv_buf_init(buf->base, nread);
+		sendbuf = uv_buf_init(buf->base, nread);
 
-		uv_write(&wr->req, (uv_stream_t *) &client->bridge->handle, &wr->buf, 1, on_write);
+		uv_write(&wr->req, (uv_stream_t *) &client->bridge->handle, &sendbuf, 1, on_write);
 	} else {
 		uv_close((uv_handle_t *) stream, on_close);
 		goto error;
